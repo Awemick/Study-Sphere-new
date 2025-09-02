@@ -1,3 +1,5 @@
+import { supabase } from './supabase.js'
+
 const PAYSTACK_PUBLIC_KEY = 'pk_test_c8085f6e5ec5f58ab4146937afe3daf700003bfe';
 
 export const paymentService = {

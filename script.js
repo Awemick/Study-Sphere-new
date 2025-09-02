@@ -1,10 +1,5 @@
 // script.js - Main application file with all integrations
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.7.1/+esm'
-
-// Initialize Supabase
-const supabaseUrl = 'https://pklaygtgyryexuyykvtf.supabase.co';
-const supabaseAnonKey = 'sb_publishable_9Md4POoW2KwD-RgFZRy8XQ_UuWu-wjE';
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+import { supabase } from './supabase.js'
 
 // API Keys (In production, these should be stored securely)
 const OCR_SPACE_API_KEY = 'K85308176588957';

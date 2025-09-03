@@ -4,7 +4,7 @@ import { paymentService, PAYSTACK_PUBLIC_KEY } from './payment-service.js'
 import { ocrService } from './Ai-services.js'
 
 // API Keys (In production, these should be stored securely)
-const OCR_SPACE_API_KEY = 'K85308176588957';
+const OCR_SPACE_API_KEY = 'my key';
 const HUGGING_FACE_API_KEY = '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';
 
 // Initialize the application

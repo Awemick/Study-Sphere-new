@@ -521,7 +521,14 @@ function updateUIForAnonymousUser() {
 
 async function loadUserData() {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError) {
+      console.error('Auth error in loadUserData:', authError);
+      // Clear corrupted session
+      await supabase.auth.signOut();
+      updateUIForAnonymousUser();
+      return null;
+    }
     if (!user) return null;
     
     const { data, error } = await supabase
@@ -547,7 +554,11 @@ async function loadUserData() {
 
 async function loadStudySets() {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError) {
+      console.error('Auth error in loadStudySets:', authError);
+      return;
+    }
     if (!user) return;
     
     const { data, error } = await supabase

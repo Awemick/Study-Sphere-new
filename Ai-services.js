@@ -1,4 +1,4 @@
-const OCR_SPACE_API_KEY = 'K85308176588957';
+const OCR_SPACE_API_KEY = 'my key';
 const HUGGING_FACE_API_KEY = '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';
 
 export const ocrService = {
@@ -91,4 +91,5 @@ export const aiService = {
     
     return flashcards;
   }
+
 };

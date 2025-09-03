@@ -1,10 +1,10 @@
 // script.js - Main application file with all integrations
 import { supabase } from './supabase.js'
 
-// API Keys (In production, these should be stored securely)
-const OCR_SPACE_API_KEY = 'K85308176588957';
-const HUGGING_FACE_API_KEY = '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';
-const PAYSTACK_PUBLIC_KEY = 'pk_test_c8085f6e5ec5f58ab4146937afe3daf700003bfe';
+// API Keys from environment variables
+const OCR_SPACE_API_KEY = import.meta.env.VITE_OCR_SPACE_API_KEY;
+const HUGGING_FACE_API_KEY = import.meta.env.VITE_HUGGING_FACE_API_KEY;
+const PAYSTACK_PUBLIC_KEY = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY;
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', function() {
@@ -12,6 +12,14 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 async function initializeApp() {
+  // Clear any potentially corrupted session data
+  try {
+    await supabase.auth.signOut();
+  } catch (error) {
+    // Ignore signout errors during initialization
+    console.log('Clearing session during initialization');
+  }
+  
   // Check authentication state
   const { data: { subscription } } = supabase.auth.onAuthStateChange(
     async (event, session) => {
@@ -26,10 +34,22 @@ async function initializeApp() {
   );
   
   // Check current auth status
-  const { data: { user } } = await supabase.auth.getUser();
-  if (user) {
-    updateUIForAuthenticatedUser();
-  } else {
+  try {
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (error) {
+      console.error('Auth error:', error);
+      // Clear corrupted session and update UI for anonymous user
+      await supabase.auth.signOut();
+      updateUIForAnonymousUser();
+    } else if (user) {
+      updateUIForAuthenticatedUser();
+    } else {
+      updateUIForAnonymousUser();
+    }
+  } catch (error) {
+    console.error('Failed to get user:', error);
+    // Clear any corrupted session data
+    await supabase.auth.signOut();
     updateUIForAnonymousUser();
   }
   

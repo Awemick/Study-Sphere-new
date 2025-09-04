@@ -5,7 +5,7 @@ export const PAYSTACK_PUBLIC_KEY = 'pk_test_my key';
 export const paymentService = {
   async initializePayment(email, amount, metadata = {}) {
     // Validate inputs
-    if (!PAYSTACK_PUBLIC_KEY || !PAYSTACK_PUBLIC_KEY.startsWith('pk_')) {
+    if (!PAYSTACK_PUBLIC_KEY || (!PAYSTACK_PUBLIC_KEY.startsWith('pk_test_') && !PAYSTACK_PUBLIC_KEY.startsWith('pk_live_'))) {
       throw new Error('Invalid Paystack API key configuration');
     }
 
@@ -14,10 +14,39 @@ export const paymentService = {
     }
 
     try {
+      // Use a CORS-enabled endpoint or implement via backend
+      // For now, we'll use Paystack's popup directly
+      const handler = PaystackPop.setup({
+        key: PAYSTACK_PUBLIC_KEY,
+        email: email,
+        amount: amount * 100, // Convert to kobo
+        currency: 'NGN',
+        metadata: metadata,
+        callback: function(response) {
+          // Payment successful
+          window.location.href = `${window.location.origin}/payment-verification.html?reference=${response.reference}`;
+        },
+        onClose: function() {
+          // Payment cancelled
+          console.log('Payment cancelled');
+        }
+      });
+      
+      handler.openIframe();
+      return { status: 'initiated' };
+    } catch (error) {
+      console.error('Payment initialization error:', error);
+      throw new Error('Failed to initialize payment. Please check your internet connection and try again.');
+    }
+  },
+  
+  // Alternative method using direct API call (requires backend proxy)
+  async initializePaymentAPI(email, amount, metadata = {}) {
+    try {
       const response = await fetch('https://api.paystack.co/transaction/initialize', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${PAYSTACK_PUBLIC_KEY}`,
+          'Authorization': `Bearer ${PAYSTACK_PUBLIC_KEY.replace('pk_', 'sk_')}`, // This would need secret key
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({

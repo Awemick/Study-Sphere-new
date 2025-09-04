@@ -1,5 +1,5 @@
-const OCR_SPACE_API_KEY = 'my key';
-const HUGGING_FACE_API_KEY = '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';
+const OCR_SPACE_API_KEY = import.meta.env.VITE_OCR_SPACE_API_KEY;
+const HUGGING_FACE_API_KEY = import.meta.env.VITE_HUGGING_FACE_API_KEY;
 
 export const ocrService = {
   async extractTextFromImage(imageFile) {

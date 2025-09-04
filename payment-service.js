@@ -1,6 +1,6 @@
 import { supabase } from './supabase.js'
 
-export const PAYSTACK_PUBLIC_KEY = 'pk_test_my key';
+export const PAYSTACK_PUBLIC_KEY = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY;
 
 export const paymentService = {
   async initializePayment(email, amount, metadata = {}) {

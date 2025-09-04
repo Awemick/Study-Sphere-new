@@ -1,5 +1,5 @@
-const OCR_SPACE_API_KEY = import.meta.env.VITE_OCR_SPACE_API_KEY;
-const HUGGING_FACE_API_KEY = import.meta.env.VITE_HUGGING_FACE_API_KEY;
+const OCR_SPACE_API_KEY = 'K85308176588957';
+const HUGGING_FACE_API_KEY = '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';
 
 export const ocrService = {
   async extractTextFromImage(imageFile) {
@@ -91,5 +91,4 @@ export const aiService = {
     
     return flashcards;
   }
-
 };

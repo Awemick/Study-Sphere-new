@@ -8552,12 +8552,12 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey);
 // Note: Removed top-level await statements to fix Vite build compatibility
 // Data loading is handled by the main application initialization
 
-const PAYSTACK_PUBLIC_KEY = 'pk_test_my key';
+const PAYSTACK_PUBLIC_KEY = 'pk_test_cb64b5939626d35004e38687f833c332bcaa4051';
 
 const paymentService = {
   async initializePayment(email, amount, metadata = {}) {
     // Validate inputs
-    if ((!PAYSTACK_PUBLIC_KEY.startsWith('pk_test_') && !PAYSTACK_PUBLIC_KEY.startsWith('pk_live_'))) {
+    if (!PAYSTACK_PUBLIC_KEY.startsWith('pk_')) {
       throw new Error('Invalid Paystack API key configuration');
     }
 
@@ -8566,39 +8566,10 @@ const paymentService = {
     }
 
     try {
-      // Use a CORS-enabled endpoint or implement via backend
-      // For now, we'll use Paystack's popup directly
-      const handler = PaystackPop.setup({
-        key: PAYSTACK_PUBLIC_KEY,
-        email: email,
-        amount: amount * 100, // Convert to kobo
-        currency: 'NGN',
-        metadata: metadata,
-        callback: function(response) {
-          // Payment successful
-          window.location.href = `${window.location.origin}/payment-verification.html?reference=${response.reference}`;
-        },
-        onClose: function() {
-          // Payment cancelled
-          console.log('Payment cancelled');
-        }
-      });
-      
-      handler.openIframe();
-      return { status: 'initiated' };
-    } catch (error) {
-      console.error('Payment initialization error:', error);
-      throw new Error('Failed to initialize payment. Please check your internet connection and try again.');
-    }
-  },
-  
-  // Alternative method using direct API call (requires backend proxy)
-  async initializePaymentAPI(email, amount, metadata = {}) {
-    try {
       const response = await fetch('https://api.paystack.co/transaction/initialize', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${PAYSTACK_PUBLIC_KEY.replace('pk_', 'sk_')}`, // This would need secret key
+          'Authorization': `Bearer ${PAYSTACK_PUBLIC_KEY}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
@@ -8633,7 +8604,54 @@ const paymentService = {
       throw error; // Re-throw the specific error
     }
   },
-  
+
+  async initializePaymentSupabase(email, amount, metadata = {}) {
+    // Validate inputs
+    if (!email || !amount || amount <= 0) {
+      throw new Error('Invalid payment parameters');
+    }
+
+    try {
+      // Get authentication token
+      const { data: { session } } = await supabase.auth.getSession();
+      const accessToken = session?.access_token || null;
+
+      const FUNCTION_URL = 'https://pklaygtgyryexuyykvtf.supabase.co/functions/v1/index-ts';
+
+      const payload = {
+        email,
+        amount, // Send in dollars as expected by the function
+        metadata,
+        callback_url: `${window.location.origin}/payment-verification.html`
+      };
+
+      const res = await fetch(FUNCTION_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(accessToken && { 'Authorization': `Bearer ${accessToken}` })
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(`Supabase function error: ${data.message || 'Unknown error'}`);
+      }
+
+      console.log('Supabase payment initialization response:', data);
+
+      // Return in the same format as Paystack for compatibility
+      return {
+        authorization_url: data.authorization_url
+      };
+    } catch (error) {
+      console.error('Supabase payment initialization error:', error);
+      throw error;
+    }
+  },
+
   async verifyPayment(reference) {
     try {
       const response = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
@@ -8662,9 +8680,9 @@ const paymentService = {
       if (!user) throw new Error('User not authenticated');
       
       const amount = planType === 'monthly' ? 900 : 1900; // $9 or $19
-      const paymentData = await this.initializePayment(
-        user.email, 
-        amount, 
+      const paymentData = await this.initializePaymentSupabase(
+        user.email,
+        amount,
         { userId, planType }
       );
       
@@ -8677,7 +8695,7 @@ const paymentService = {
   }
 };
 
-const OCR_SPACE_API_KEY = 'my key';
+const OCR_SPACE_API_KEY = 'K85308176588957';
 
 const ocrService = {
   async extractTextFromImage(imageFile) {

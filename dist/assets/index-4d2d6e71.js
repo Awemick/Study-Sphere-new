@@ -8544,7 +8544,7 @@ if (shouldShowDeprecationWarning()) {
 
 // Define your Supabase URL and anon key
 const supabaseUrl = 'https://pklaygtgyryexuyykvtf.supabase.co';
-const supabaseAnonKey = 'my key I6ImFub24iLCJpYXQiOjE3NTY3MTQ3MjEsImV4cCI6MjA3MjI5MDcyMX0.wFiSHjsg3oF5CdeRnRY5VTs6rhzJHJbVjT3B79EfAW0';
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBrbGF5Z3RneXJ5ZXh1eXlrdnRmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY3MTQ3MjEsImV4cCI6MjA3MjI5MDcyMX0.wFiSHjsg3oF5CdeRnRY5VTs6rhzJHJbVjT3B79EfAW0';
 
 // Create a single supabase client for interacting with your database
 const supabase = createClient(supabaseUrl, supabaseAnonKey);

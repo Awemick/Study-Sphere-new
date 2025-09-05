@@ -8797,87 +8797,6 @@ function hideLoading() {
 }
 
 async function initializeApp() {
-  // Check for payment verification on page load
-  const urlParams = new URLSearchParams(window.location.search);
-  const paymentAction = urlParams.get('payment');
-  const reference = urlParams.get('reference');
-
-  if (paymentAction === 'verify' && reference) {
-    // Show payment verification UI
-    document.querySelector('main').style.display = 'none';
-    document.getElementById('payment-verification').style.display = 'block';
-
-    // Process payment verification
-    try {
-      const data = await paymentService.verifyPayment(reference);
-      if (data.status === 'success') {
-        // Update user premium status in Supabase
-        const userId = data.metadata.userId;
-
-        const { error } = await supabase
-          .from('profiles')
-          .update({
-            is_premium: true,
-            premium_expires_at: getPremiumExpiryDate(data.metadata.planType)
-          })
-          .eq('id', userId);
-
-        if (error) {
-          console.error('Error updating premium status:', error);
-          alert('Payment verified but there was an error activating your premium account. Please contact support.');
-        } else {
-          alert('Payment successful! Your premium account has been activated.');
-          // Redirect to clean URL after successful verification
-          window.location.href = '/';
-        }
-      }
-    } catch (error) {
-      console.error('Payment verification failed:', error);
-      alert('Payment verification failed. Please contact support.');
-    }
-    return; // Exit early if handling payment verification
-  }
-
-  // Handle legacy payment-verification.html redirects (fallback)
-  if (window.location.pathname.includes('payment-verification.html')) {
-    const urlParams = new URLSearchParams(window.location.search);
-    const reference = urlParams.get('reference') || urlParams.get('trxref');
-
-    if (reference) {
-      // Show payment verification UI
-      document.querySelector('main').style.display = 'none';
-      document.getElementById('payment-verification').style.display = 'block';
-
-      // Process payment verification
-      try {
-        const data = await paymentService.verifyPayment(reference);
-        if (data.status === 'success') {
-          const userId = data.metadata.userId;
-
-          const { error } = await supabase
-            .from('profiles')
-            .update({
-              is_premium: true,
-              premium_expires_at: getPremiumExpiryDate(data.metadata.planType)
-            })
-            .eq('id', userId);
-
-          if (error) {
-            console.error('Error updating premium status:', error);
-            alert('Payment verified but there was an error activating your premium account. Please contact support.');
-          } else {
-            alert('Payment successful! Your premium account has been activated.');
-            window.location.href = '/';
-          }
-        }
-      } catch (error) {
-        console.error('Payment verification failed:', error);
-        alert('Payment verification failed. Please contact support.');
-      }
-    }
-    return;
-  }
-
   // Check authentication state
   supabase.auth.onAuthStateChange(
     async (event, session) => {
@@ -8890,7 +8809,7 @@ async function initializeApp() {
       }
     }
   );
-
+  
   // Check current auth status
   const { data: { user } } = await supabase.auth.getUser();
   if (user) {
@@ -8898,7 +8817,7 @@ async function initializeApp() {
   } else {
     updateUIForAnonymousUser();
   }
-
+  
   // Set up event listeners
   setupEventListeners();
 }
@@ -9554,16 +9473,4 @@ function updateUIForAuthenticatedUser() {
   // Show user-specific content, update UI for logged-in user
   document.getElementById('authBtn').textContent = 'Sign Out';
   // You can show tabs or sections if needed
-}
-
-function getPremiumExpiryDate(planType) {
-  const expiryDate = new Date();
-
-  if (planType === 'monthly') {
-    expiryDate.setMonth(expiryDate.getMonth() + 1);
-  } else {
-    expiryDate.setFullYear(expiryDate.getFullYear() + 1);
-  }
-
-  return expiryDate.toISOString();
 }

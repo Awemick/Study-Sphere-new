@@ -8576,7 +8576,7 @@ const paymentService = {
           email,
           amount: amount * 100, // Convert to kobo
           metadata,
-          callback_url: `${window.location.origin}/payment-verification.html`
+          callback_url: `${window.location.origin}/?payment=verify`
         })
       });
 
@@ -8622,7 +8622,7 @@ const paymentService = {
         email,
         amount, // Send in dollars as expected by the function
         metadata,
-        callback_url: `${window.location.origin}/payment-verification.html`
+        callback_url: `${window.location.origin}/?payment=verify`
       };
 
       const res = await fetch(FUNCTION_URL, {
@@ -8637,7 +8637,12 @@ const paymentService = {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(`Supabase function error: ${data.message || 'Unknown error'}`);
+        console.error('Supabase function failed:', {
+          status: res.status,
+          statusText: res.statusText,
+          responseData: data
+        });
+        throw new Error(`Supabase function error: ${data.error || data.message || 'Unknown error'}`);
       }
 
       console.log('Supabase payment initialization response:', data);
@@ -8726,7 +8731,6 @@ const ocrService = {
 };
 
 // script.js - Main application file with all integrations
-const HUGGING_FACE_API_KEY = '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';
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', function() {
@@ -8793,6 +8797,87 @@ function hideLoading() {
 }
 
 async function initializeApp() {
+  // Check for payment verification on page load
+  const urlParams = new URLSearchParams(window.location.search);
+  const paymentAction = urlParams.get('payment');
+  const reference = urlParams.get('reference');
+
+  if (paymentAction === 'verify' && reference) {
+    // Show payment verification UI
+    document.querySelector('main').style.display = 'none';
+    document.getElementById('payment-verification').style.display = 'block';
+
+    // Process payment verification
+    try {
+      const data = await paymentService.verifyPayment(reference);
+      if (data.status === 'success') {
+        // Update user premium status in Supabase
+        const userId = data.metadata.userId;
+
+        const { error } = await supabase
+          .from('profiles')
+          .update({
+            is_premium: true,
+            premium_expires_at: getPremiumExpiryDate(data.metadata.planType)
+          })
+          .eq('id', userId);
+
+        if (error) {
+          console.error('Error updating premium status:', error);
+          alert('Payment verified but there was an error activating your premium account. Please contact support.');
+        } else {
+          alert('Payment successful! Your premium account has been activated.');
+          // Redirect to clean URL after successful verification
+          window.location.href = '/';
+        }
+      }
+    } catch (error) {
+      console.error('Payment verification failed:', error);
+      alert('Payment verification failed. Please contact support.');
+    }
+    return; // Exit early if handling payment verification
+  }
+
+  // Handle legacy payment-verification.html redirects (fallback)
+  if (window.location.pathname.includes('payment-verification.html')) {
+    const urlParams = new URLSearchParams(window.location.search);
+    const reference = urlParams.get('reference') || urlParams.get('trxref');
+
+    if (reference) {
+      // Show payment verification UI
+      document.querySelector('main').style.display = 'none';
+      document.getElementById('payment-verification').style.display = 'block';
+
+      // Process payment verification
+      try {
+        const data = await paymentService.verifyPayment(reference);
+        if (data.status === 'success') {
+          const userId = data.metadata.userId;
+
+          const { error } = await supabase
+            .from('profiles')
+            .update({
+              is_premium: true,
+              premium_expires_at: getPremiumExpiryDate(data.metadata.planType)
+            })
+            .eq('id', userId);
+
+          if (error) {
+            console.error('Error updating premium status:', error);
+            alert('Payment verified but there was an error activating your premium account. Please contact support.');
+          } else {
+            alert('Payment successful! Your premium account has been activated.');
+            window.location.href = '/';
+          }
+        }
+      } catch (error) {
+        console.error('Payment verification failed:', error);
+        alert('Payment verification failed. Please contact support.');
+      }
+    }
+    return;
+  }
+
   // Check authentication state
   supabase.auth.onAuthStateChange(
     async (event, session) => {
@@ -8805,7 +8890,7 @@ async function initializeApp() {
       }
     }
   );
-  
+
   // Check current auth status
   const { data: { user } } = await supabase.auth.getUser();
   if (user) {
@@ -8813,7 +8898,7 @@ async function initializeApp() {
   } else {
     updateUIForAnonymousUser();
   }
-  
+
   // Set up event listeners
   setupEventListeners();
 }
@@ -8996,18 +9081,42 @@ function setupEventListeners() {
       alert('No flashcards to save.');
       return;
     }
-    // Save to Supabase (adjust table/fields as needed)
-    const { error } = await supabase
-      .from('flashcards')
-      .insert(flashcards.map(card => ({
+
+    try {
+      // First create a study set
+      const studySetTitle = prompt('Enter a name for your study set:', 'My Flashcards');
+      if (!studySetTitle) return;
+
+      const studySetData = {
         user_id: user.id,
-        question: card.question,
-        answer: card.answer
-      })));
-    if (error) {
-      alert('Error saving flashcards.');
-    } else {
+        title: studySetTitle,
+        subject: 'Generated Flashcards',
+        description: `Auto-generated flashcards from text (${flashcards.length} cards)`
+      };
+
+      const { data: studySet, error: setError } = await supabase
+        .from('study_sets')
+        .insert([studySetData])
+        .select()
+        .single();
+
+      if (setError) throw setError;
+
+      // Then save flashcards to the study set using the API
+      const { error: cardsError } = await supabase
+        .from('flashcards')
+        .insert(flashcards.map(card => ({
+          study_set_id: studySet.id,
+          question: card.question,
+          answer: card.answer
+        })));
+
+      if (cardsError) throw cardsError;
+
       alert('Flashcards saved to your library!');
+    } catch (error) {
+      console.error('Error saving flashcards:', error);
+      alert('Error saving flashcards. Please try again.');
     }
   });
 }
@@ -9172,30 +9281,48 @@ async function handleGenerateFlashcards() {
 
 async function generateFlashcardsAI(text) {
   try {
-    const response = await fetch(
-      'https://api-inference.huggingface.co/models/google/flan-t5-large',
-      {
-        headers: { Authorization: `Bearer ${HUGGING_FACE_API_KEY}` },
-        method: 'POST',
-        body: JSON.stringify({
-          inputs: `Generate 5 multiple-choice flashcards from the following text. Format as JSON: [{"question": "...", "options": ["A", "B", "C", "D"], "answer": "A"}]. Text: ${text.substring(0, 1000)}`
-        }),
-      }
-    );
-    const result = await response.json();
-    console.log('Hugging Face API result:', result); // Add this line
+    // Get authentication token
+    const { data: { session } } = await supabase.auth.getSession();
+    const accessToken = session?.access_token;
 
-    if (result.error) throw new Error(result.error);
+    if (!accessToken) {
+      throw new Error('Authentication required for AI generation');
+    }
+
+    const response = await fetch('https://pklaygtgyryexuyykvtf.supabase.co/functions/v1/huggingface-test', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`
+      },
+      body: JSON.stringify({
+        inputs: `Generate 5 multiple-choice flashcards from the following text. Format as JSON: [{"question": "...", "options": ["A", "B", "C", "D"], "answer": "A"}]. Text: ${text.substring(0, 1000)}`
+      })
+    });
+
+    const result = await response.json();
+    console.log('Supabase AI API result:', result);
+
+    if (!response.ok) {
+      throw new Error(result.error || 'AI generation failed');
+    }
+
+    if (result.error) {
+      throw new Error(result.error);
+    }
 
     // Extract JSON from response
-    const jsonMatch = result[0].generated_text.match(/\[.*\]/s);
-    if (jsonMatch) {
-      return JSON.parse(jsonMatch[0]);
+    if (result[0] && result[0].generated_text) {
+      const jsonMatch = result[0].generated_text.match(/\[.*\]/s);
+      if (jsonMatch) {
+        return JSON.parse(jsonMatch[0]);
+      }
     }
+
     // Fallback to simple generation
     return generateSimpleMCFlashcards(text);
   } catch (error) {
-    console.error('Hugging Face API Error:', error);
+    console.error('AI generation error:', error);
     return generateSimpleMCFlashcards(text);
   }
 }
@@ -9427,4 +9554,16 @@ function updateUIForAuthenticatedUser() {
   // Show user-specific content, update UI for logged-in user
   document.getElementById('authBtn').textContent = 'Sign Out';
   // You can show tabs or sections if needed
+}
+
+function getPremiumExpiryDate(planType) {
+  const expiryDate = new Date();
+
+  if (planType === 'monthly') {
+    expiryDate.setMonth(expiryDate.getMonth() + 1);
+  } else {
+    expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+  }
+
+  return expiryDate.toISOString();
 }

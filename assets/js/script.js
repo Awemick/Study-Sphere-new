@@ -7,9 +7,9 @@ import { ocrService } from './Ai-services.js'
 // (These will be assigned after their respective function definitions)
 
 // API Keys (In production, these should be stored securely)
-const OCR_SPACE_API_KEY = 'K85308176588957';
-const HUGGING_FACE_API_KEY = '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';
-const COHERE_API_KEY = 'Jfeh10jJbwwBYwiVhJGrngoUXTIeriuJaOIzc1qW';
+const OCR_SPACE_API_KEY = '';
+const HUGGING_FACE_API_KEY = '';
+const COHERE_API_KEY = '';
 
 // Simple in-memory cache for flashcard generation
 const flashcardCache = new Map();

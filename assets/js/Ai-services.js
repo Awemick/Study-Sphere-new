@@ -1,5 +1,5 @@
 const OCR_SPACE_API_KEY = 'K85308176588957';
-const HUGGING_FACE_API_KEY = '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';
+const HUGGING_FACE_API_KEY = '';
 
 export const ocrService = {
   async extractTextFromImage(imageFile) {
@@ -91,4 +91,5 @@ export const aiService = {
     
     return flashcards;
   }
+
 };
